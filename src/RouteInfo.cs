@@ -1,4 +1,4 @@
-namespace IdentityMapping
+namespace IotedgeV2IdentityMapping
 {
     using System.Collections.Generic;
 
