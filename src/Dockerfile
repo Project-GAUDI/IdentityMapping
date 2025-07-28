@@ -15,7 +15,7 @@ RUN chmod +x ./entrypoint.sh
 
 RUN { \
     echo "module name : IdentityMapping"; \
-    echo "module version : 6.0.1"; \
+    echo "module version : 6.0.3"; \
 } > ./application.info
 
 RUN useradd -ms /bin/bash moduleuser
