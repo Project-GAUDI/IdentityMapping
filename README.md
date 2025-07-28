@@ -37,7 +37,7 @@ IdentityMappingは、メッセージにプロパティ付与を行うAzure IoT e
 ![schematic diagram](./docs/img/schematic_diagram.drawio.png)
 
 ## Quick Start
-1. Personal Accese tokenを作成
+1. Personal Access tokenを作成
 （参考: [個人用アクセス トークンを管理する](https://docs.github.com/ja/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)）
 
 2. リポジトリをクローン
@@ -45,7 +45,7 @@ IdentityMappingは、メッセージにプロパティ付与を行うAzure IoT e
 git clone https://github.com/Project-GAUDI/IdentityMapping.git
 ```
 
-3. ./src/nuget_template.configの<GITHUB_USERNAME>と<PERSONAL_ACCESS_TOKEN>を自身のユーザー名とPersonal Accese tokenに書き換えて、ファイル名をnuget.configに変更してください
+3. ./src/nuget_template.configの<GITHUB_USERNAME>と<PERSONAL_ACCESS_TOKEN>を自身のユーザー名とPersonal Access tokenに書き換えて、ファイル名をnuget.configに変更してください
 
 4. Dockerイメージをビルド
 ```
@@ -74,9 +74,9 @@ docker push ghcr.io/<YOUR_GITHUB_USERNAME>/identitymapping:<VERSION>
 
 ## 動作保証環境
 
-| Module Version | IoTEdge | edgeAgent | edgeHub  | amd64 verified on | arm64v8 verified on | arm32v7 verified on |
-| -------------- | ------- | --------- | -------- | ----------------- | ------------------- | ------------------- |
-| 6.0.1          | 1.5.0   | 1.5.6     | 1.5.6    | ubuntu22.04       | －                  | －                  |
+| Module Version | IoTEdge         | edgeAgent       | edgeHub         | amd64 verified on | arm64v8 verified on | arm32v7 verified on |
+| -------------- | --------------- | --------------- | --------------- | ----------------- | ------------------- | ------------------- |
+| 6.0.3          | 1.5.0<br>1.5.16 | 1.5.6<br>1.5.19 | 1.5.6<br>1.5.19 | ubuntu22.04       | －                  | －                  |
 
 ## Deployment 設定値
 
