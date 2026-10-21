@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 using TICO.GAUDI.Commons;
@@ -14,12 +15,39 @@ namespace IotedgeV2IdentityMapping
     {
         static ILogger MyLogger { get; } = LoggerFactory.GetLogger(typeof(MyApplicationMain));
         static List<RouteInfo> RouteInfos { get; set; } = null;
-
-        public void Dispose()
+        private int _disposed = 0; // 0: false, 1: true
+        /// <summary>
+        /// リソース解放
+        /// </summary>
+        /// <returns></returns>
+        public async ValueTask DisposeAsync()
         {
-            MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Start Method: Dispose");
+            MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Start Method: DisposeAsync");
 
-            MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"End Method: Dispose");
+            // 2重実行防止
+            if (Interlocked.Exchange(ref _disposed, 1) == 1)
+            {
+                MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: Already disposed, skipping DisposeAsync");
+                return;
+            }
+
+            try
+            {
+                // ここでApplicationMainのリソース解放処理を行う
+                // 非同期リソースがある場合は適切に解放する
+                // ＝＝＝＝＝＝＝＝＝＝＝＝＝ここから＝＝＝＝＝＝＝＝＝＝＝＝＝
+
+                await Task.CompletedTask; // 非同期リソース解放処理をここに記述
+
+                // ＝＝＝＝＝＝＝＝＝＝＝＝＝ここまで＝＝＝＝＝＝＝＝＝＝＝＝＝
+            }
+            catch (Exception ex)
+            {
+                MyLogger.WriteLog(ILogger.LogLevel.ERROR, $"Error in DisposeAsync: {ex.Message}", true);
+                // 例外は再スローしない（Disposeでは通常例外を抑制）
+            }
+
+            MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"End Method: DisposeAsync");
         }
 
         /// <summary>
@@ -47,7 +75,6 @@ namespace IotedgeV2IdentityMapping
         /// アプリケーション起動処理					
         /// システム初期化完了後に呼び出される
         /// </summary>
-        /// <param name=""></param>
         /// <returns></returns>
         public async Task<bool> StartAsync()
         {
@@ -111,102 +138,89 @@ namespace IotedgeV2IdentityMapping
             JObject routes = null;
             try
             {
-                routes = Util.GetRequiredValue<JObject>(desiredProperties, "routes");
+                routes = Util.GetDesiredProperty<JObject>(desiredProperties, "routes", true);
 
-            }
-            catch (Exception ex)
-            {
-                var errmsg = $"Property routes does not exist";
-                MyLogger.WriteLog(ILogger.LogLevel.ERROR, $"{errmsg} {ex}", true);
-                MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: OnDesiredPropertiesReceivedAsync caused by {errmsg}");
-                retStatus = false;
-                return retStatus;
-            }
-
-            if (routes.Count == 0)
-            {
-                var errmsg = $"Property routes is empty";
-                MyLogger.WriteLog(ILogger.LogLevel.ERROR, errmsg, true);
-                MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: OnDesiredPropertiesReceivedAsync caused by {errmsg}");
-                retStatus = false;
-                return retStatus;
-            }
-
-            // 各routeの値を取得
-            foreach (KeyValuePair<string, JToken> route in routes)
-            {
-                var robj = route.Value as JObject;
-                if (robj == null)
+                if (routes.Count == 0)
                 {
-                    var errmsg = $"Property routes[{route.Key}] is unexpected value.";
-                    MyLogger.WriteLog(ILogger.LogLevel.ERROR, errmsg, true);
-                    MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: OnDesiredPropertiesReceivedAsync caused by {errmsg}");
-                    retStatus = false;
-                    return retStatus;
-                }
-                JValue itkn = null;
-                try
-                {
-                    itkn = Util.GetRequiredValue<JValue>(robj, "input");
-                }
-                catch (Exception)
-                {
-                    var errmsg = $"Property input dose not exist";
+                    var errmsg = $"Property routes is empty.";
                     MyLogger.WriteLog(ILogger.LogLevel.ERROR, errmsg, true);
                     MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: OnDesiredPropertiesReceivedAsync caused by {errmsg}");
                     retStatus = false;
                     return retStatus;
                 }
 
-                string input = itkn.Value.ToString();
-                JValue otkn = null;
-                try
+                // 各routeの値を取得
+                foreach (KeyValuePair<string, JToken> route in routes)
                 {
-                    otkn = Util.GetRequiredValue<JValue>(robj, "output");
-                }
-                catch (Exception)
-                {
-                    var errmsg = $"Property output dose not exist";
-                    MyLogger.WriteLog(ILogger.LogLevel.ERROR, errmsg, true);
-                    MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: OnDesiredPropertiesReceivedAsync caused by {errmsg}");
-                    retStatus = false;
-                    return retStatus;
-                }
-                string output = otkn.Value.ToString();
-                JObject pobj = null;
-                try
-                {
-                    pobj = Util.GetRequiredValue<JObject>(robj, "add_or_replace");
-                }
-                catch (Exception)
-                {
-                    var errmsg = $"Property add_or_replace does not exist";
-                    MyLogger.WriteLog(ILogger.LogLevel.ERROR, errmsg, true);
-                    MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: OnDesiredPropertiesReceivedAsync caused by {errmsg}");
-                    retStatus = false;
-                    return retStatus;
-                }
-
-                Dictionary<string, string> properties = new Dictionary<string, string>();
-                StringBuilder sb = new StringBuilder("add_or_replace:");
-                foreach (var prop in pobj)
-                {
-                    var val = prop.Value as JValue;
-                    if (val == null)
-                    {
-                        var errmsg = $"Property routes[{route.Key}].add_or_replace[{prop.Key}] is unexpected value.";
+                    if(route.Value.Type == JTokenType.Null){
+                        var errmsg = $"Property {route.Key} is null.";
                         MyLogger.WriteLog(ILogger.LogLevel.ERROR, errmsg, true);
                         MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: OnDesiredPropertiesReceivedAsync caused by {errmsg}");
                         retStatus = false;
                         return retStatus;
                     }
-                    properties.Add(prop.Key, val.Value.ToString());
-                    sb.AppendLine($"  {prop.Key}: {val.Value}");
+
+                    var robj = route.Value as JObject;
+
+                    if(robj == null){
+                        var errmsg = $"Property {route.Key} is unexpected value.";
+                        MyLogger.WriteLog(ILogger.LogLevel.ERROR, errmsg, true);
+                        MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: OnDesiredPropertiesReceivedAsync caused by {errmsg}");
+                        retStatus = false;
+                        return retStatus;
+                    }
+
+                    JValue itkn = null;
+
+                    itkn = Util.GetDesiredProperty<JValue>(robj, "input", true);
+
+
+                    string input = itkn.Value.ToString();
+                    JValue otkn = null;
+
+                    otkn = Util.GetDesiredProperty<JValue>(robj, "output", true);
+
+                    string output = otkn.Value.ToString();
+                    JObject pobj = null;
+
+                    pobj = Util.GetDesiredProperty<JObject>(robj, "add_or_replace", true);
+
+
+                    Dictionary<string, string> properties = new Dictionary<string, string>();
+                    StringBuilder sb = new StringBuilder("add_or_replace:");
+                    if (pobj.Count == 0)
+                    {
+                        var errmsg = $"Property routes[{route.Key}].add_or_replace is empty.";
+                        MyLogger.WriteLog(ILogger.LogLevel.ERROR, errmsg, true);
+                        MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: OnDesiredPropertiesReceivedAsync caused by {errmsg}");
+                        retStatus = false;
+                        return retStatus;
+                    }
+                    foreach (var prop in pobj)
+                    {
+                        var val = prop.Value as JValue;
+                        if (val == null || val.Value == null)
+                        {
+                            var errmsg = $"Property routes[{route.Key}].add_or_replace[{prop.Key}] is unexpected value.";
+                            MyLogger.WriteLog(ILogger.LogLevel.ERROR, errmsg, true);
+                            MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: OnDesiredPropertiesReceivedAsync caused by {errmsg}");
+                            retStatus = false;
+                            return retStatus;
+                        }
+                        properties.Add(prop.Key, val.Value.ToString());
+                        sb.AppendLine($"  {prop.Key}: {val.Value}");
+                    }
+
+                    RouteInfos.Add(new RouteInfo(input, output, properties));
+
+                    MyLogger.WriteLog(ILogger.LogLevel.INFO, $"Property routes[{route.Key}] input:{input}, output:{output}, {sb}");
                 }
-
-                RouteInfos.Add(new RouteInfo(input, output, properties));
-
-                MyLogger.WriteLog(ILogger.LogLevel.INFO, $"Property routes[{route.Key}] input:{input}, output:{output}, {sb}");
+            }
+            catch (Exception ex)
+            {
+                MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: OnDesiredPropertiesReceivedAsync caused by {ex.Message}");
+                retStatus = false;
+                return retStatus;
             }
             await Task.CompletedTask;
             // ＝＝＝＝＝＝＝＝＝＝＝＝＝ここまで＝＝＝＝＝＝＝＝＝＝＝＝＝
