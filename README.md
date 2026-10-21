@@ -31,8 +31,8 @@ IdentityMappingは、メッセージにプロパティ付与を行うAzure IoT e
 
 ## 機能
 
-入力されたメッセージに対して任意のプロパティを追加／置換してメッセージを受け渡す。<br>
-入力されたメッセージに編集するプロパティが設定されている場合、desiredProperty の値が優先され、置換される。
+入力されたメッセージに対して任意のプロパティを追加／上書きしてメッセージを受け渡す。  
+入力されたメッセージに編集するプロパティが設定されている場合、モジュールツインの設定値が優先され、上書きされる。
 
 ![schematic diagram](./docs/img/schematic_diagram.drawio.png)
 
@@ -74,9 +74,9 @@ docker push ghcr.io/<YOUR_GITHUB_USERNAME>/identitymapping:<VERSION>
 
 ## 動作保証環境
 
-| Module Version | IoTEdge         | edgeAgent       | edgeHub         | amd64 verified on | arm64v8 verified on | arm32v7 verified on |
-| -------------- | --------------- | --------------- | --------------- | ----------------- | ------------------- | ------------------- |
-| 6.0.3          | 1.5.0<br>1.5.16 | 1.5.6<br>1.5.19 | 1.5.6<br>1.5.19 | ubuntu22.04       | －                  | －                  |
+| Module Version | IoTEdge | edgeAgent | edgeHub | amd64 verified on | arm64v8 verified on | arm32v7 verified on |
+| -------------- | ------- | --------- | ------- | ----------------- | ------------------- | ------------------- |
+| 7.0.1          | 1.6.4   | 1.6.4     | 1.6.4   | ubuntu24.04       | －                  | －                  |
 
 ## Deployment 設定値
 
@@ -84,24 +84,24 @@ docker push ghcr.io/<YOUR_GITHUB_USERNAME>/identitymapping:<VERSION>
 
 #### 環境変数の値
 
-| Key                       | Required | Default | Recommend | Description                                                     |
-| ------------------------- | -------- | ------- | --------- | ---------------------------------------------------------------- |
-| TransportProtocol         |          | Amqp    |           | ModuleClient の接続プロトコル。<br>["Amqp", "Mqtt"] |
-| LogLevel                  |          | info    |           | 出力ログレベル。<br>["trace", "debug", "info", "warn", "error"] |
+| Key               | Type   | Required | Conditions                                  | Default | Description                     |
+| ----------------- | ------ | -------- | ------------------------------------------- | ------- | ------------------------------- |
+| TransportProtocol | string |          | ["Amqp", "Mqtt"]                            | Amqp    | ModuleClient の接続プロトコル。 |
+| LogLevel          | string |          | ["trace", "debug", "info", "warn", "error"] | info    | 出力ログレベル。                |
 
 ### Desired Properties
 
 #### Desired Properties の値
 
-| JSON Key                                                                  | Type    | Required | Default | Recommend | Description                                                                |
-| ------------------------------------------------------------------------- | ------- | -------- | ------- | --------- | ------------------------------------------------------------------------   |
-| routes                                                                    | object  | 〇       |         |           | ルートの定義。                                                             |
-| &nbsp; route[x]<br>\*キーはなんでもよい(route[x]は重複回避のための推奨値) | object  | 〇       |         |           | [x]は1から始まる連番。<br>プロパティ定義の判別用キー。<br>ログ出力のみで使用。 |
-| &nbsp; &nbsp; input                                                       | string  | 〇       |         |           | プロパティを編集するメッセージのインプット名。                             |
-| &nbsp; &nbsp; output                                                      | string  | 〇       |         |           | プロパティを編集したメッセージを送信するアウトプット名。                   |
-| &nbsp; &nbsp; add_or_replace                                              | object  | 〇       |         |           | 追加／置換するプロパティ情報。                                             |
-| &nbsp; &nbsp; &nbsp; key                                                  | string  |          | null    |           | メッセージにプロパティを追加する際のキー。                                 |
-| &nbsp; &nbsp; &nbsp; value                                                | string  |          | null    |           | メッセージにプロパティを追加する際の値。                                   |
+| JSON Key | Type | Required | Conditions | Default | Description |
+| ---------------------------- | ------ | -------- | ---------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| routes | object | 〇 | | | ルートの定義。 |
+| &emsp; route[x] | object | 〇 | | | ルート設定を区別する為の任意のキー。ログ出力のみで使用。<br>キーの制約は無いが重複回避のためroute[x]を推奨。([x]は1から始まる連番) |
+| &emsp; &emsp; input | string | 〇 | | | プロパティを編集するメッセージのインプット名。 |
+| &emsp; &emsp; output | string | 〇 | | | プロパティを編集したメッセージを送信するアウトプット名。 |
+| &emsp; &emsp; add_or_replace | object | 〇 | | | 追加／上書きするプロパティ情報。 |
+| &emsp; &emsp; &emsp; key | string | 〇 | | | メッセージにプロパティを追加または上書きする際のキー。 |
+| &emsp; &emsp; &emsp; value | string | 〇 | | | メッセージにプロパティを追加または上書きする際の値。 |
 
 #### Desired Properties の記入例
 
@@ -109,7 +109,7 @@ docker push ghcr.io/<YOUR_GITHUB_USERNAME>/identitymapping:<VERSION>
 {
   "routes": {
     "route1": {
-      "input": "in1",
+      "input": "input",
       "output": "output",
       "add_or_replace": {
         "country": "JP",
@@ -120,8 +120,7 @@ docker push ghcr.io/<YOUR_GITHUB_USERNAME>/identitymapping:<VERSION>
         "format": "007",
         "ProductionMode": "2"
       }
-    },
-    "route2": {}
+    }
   }
 }
 ```
@@ -143,9 +142,9 @@ docker push ghcr.io/<YOUR_GITHUB_USERNAME>/identitymapping:<VERSION>
 
 #### startupOrder の値
 
-| JSON Key      | Type    | Required | Default | Recommend | Description |
-| ------------- | ------- | -------- | ------- | --------- | ----------- |
-| startupOrder  | uint    |  | 4294967295 | 400 | モジュールの起動順序。数字が小さいほど先に起動される。<br>["0"から"4294967295"] |
+| JSON Key | Type | Required | Conditions | Default | Recommend | Description |
+| ------------ | ------ | -------- | -------------------------- | ---------- | ---------- | ------------------------------------------------------ |
+| startupOrder | number | | 0 以上 4294967295 以下の整数 | 4294967295 | 400 | モジュールの起動順序。数字が小さいほど先に起動される。 |
 
 #### startupOrder の記入例
 
@@ -165,6 +164,30 @@ docker push ghcr.io/<YOUR_GITHUB_USERNAME>/identitymapping:<VERSION>
 
 任意
 
+### Message の例
+
+```json
+{
+  "Body": {
+    "RecordList": [
+      {
+        "RecordHeader": ["temperature", "humidity", "timestamp"],
+        "RecordData": [
+          ["25.5", "60.2", "2024-01-15T10:30:00Z"],
+          ["26.1", "58.7", "2024-01-15T10:31:00Z"]
+        ]
+      }
+    ]
+  },
+  "Properties": {
+    "filename": "sensor_data_20240115.csv",
+    "row_count": "2",
+    "country": "US",
+    "ProductionMode": "1"
+  }
+}
+```
+
 ## 送信メッセージ
 
 <a id="SendMessageBody"></a>
@@ -177,9 +200,40 @@ docker push ghcr.io/<YOUR_GITHUB_USERNAME>/identitymapping:<VERSION>
 
 ### Message Properties
 
-| Key                                                 | Description                                           |
-| --------------------------------------------------- | ----------------------------------------------------- |
-| Desired Properties の add_or_replace で設定した key | Desired Properties の add_or_replace で設定した value |
+受信メッセージの既存プロパティに加えて、以下のプロパティが追加・上書きされる
+
+| Key | Description |
+| --------------------------------------------- | ------------------------------------------------ |
+| モジュールツインの add_or_replace で設定した key | モジュールツインの add_or_replace で設定した value |
+
+### Message の例
+
+```json
+{
+  "Body": {
+    "RecordList": [
+      {
+        "RecordHeader": ["temperature", "humidity", "timestamp"],
+        "RecordData": [
+          ["25.5", "60.2", "2024-01-15T10:30:00Z"],
+          ["26.1", "58.7", "2024-01-15T10:31:00Z"]
+        ]
+      }
+    ]
+  },
+  "Properties": {
+    "filename": "sensor_data_20240115.csv",
+    "row_count": "2",
+    "country": "JP",
+    "company": "01",
+    "factory": "301",
+    "data_type": "004",
+    "free_area": "30103",
+    "format": "007",
+    "ProductionMode": "2"
+  }
+}
+```
 
 ## Direct Method
 
@@ -258,12 +312,12 @@ docker push ghcr.io/<YOUR_GITHUB_USERNAME>/identitymapping:<VERSION>
 ## ログ出力内容
 
 | LogLevel | 出力概要 |
-| -------- | -------- |
-| error    | [初期化/desired更新/desired取り込み/メッセージ受信]失敗         |
-| warn     | エッジランタイムとの接続リトライ失敗<br>環境変数の1部値不正         |
-| info     | 環境変数の値<br>desired更新通知<br>環境変数の値未設定のためDefault値適用<br>メッセージ[送信/受信]通知         |
-| debug    | 無し     |
-| trace    | メソッドの開始・終了<br>受信メッセージBody  |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| error | [初期化/リソース解放/モジュールツイン更新/メッセージ送信/メッセージ受信]失敗<br>モジュールツインの必須項目未設定<br>[環境変数/モジュールツイン]がConditionsまたはType制約違反 |
+| warn | エッジランタイムとの接続リトライ失敗 |
+| info | [環境変数/モジュールツイン]の値<br>モジュールツイン更新通知<br>環境変数の省略可能項目未設定のためDefault値適用<br>メッセージ[送信/受信]通知 |
+| debug | 無し |
+| trace | リソース解放済み通知<br>メソッドの開始・終了<br>受信メッセージBody |
 
 ## ユースケース
 
@@ -271,53 +325,95 @@ docker push ghcr.io/<YOUR_GITHUB_USERNAME>/identitymapping:<VERSION>
 
 ### ケース①
 
-IoTHubに送信するメッセージにデバイスID等の識別子をメッセージを付与して送信する。
+IoTHubに送信するメッセージにデータ種別等の識別子をプロパティとして付与して送信する。
 
 ![schematic diagram](./docs/img/usecase_diagram.drawio.png)
 
-#### desiredProperties
+#### 起動順序 startupOrder
 
-```JSON
+| 名称         | 値  |
+| ------------ | --- |
+| startupOrder | 400 |
+
+#### 環境変数
+
+| 名称              | 値   |
+| ----------------- | ---- |
+| TransportProtocol | Amqp |
+| LogLevel          | info |
+
+#### コンテナーの作成オプション Create Option
+
+```json
+{}
+```
+
+#### モジュールツインの設定
+
+```json
 {
  "routes": {
-  "route1": {
-   "input": "in1",
-   "output": "output",
-   "add_or_replace": {
-    "country": "JP",
-    "company": "01",
-    "factory": "301",
-    "data_type": "004",
-    "free_area": "30103",
-    "format": "007",
-    "ProductionMode": "2"
+   "route1": {
+     "input": "input",
+     "output": "output",
+     "add_or_replace": {
+       "country": "JP",
+       "company": "01",
+       "factory": "301",
+       "data_type": "004",
+       "free_area": "30103",
+       "format": "007",
+       "ProductionMode": "2"
+     }
    }
-  },
-  "route2": {}
  }
 }
 ```
 
-#### 環境変数
+#### 入力内容
 
-| 名称     | 値    |
-| -------- | ----- |
-| LogLevel | debug |
-
-#### 出力結果
-
-CSVReceiverのメッセージにroute1で定義した
-プロパティを付与したメッセージ
+```json
+{
+  "Body": {
+      "RecordList": [
+      {
+        "RecordHeader": ["temperature", "humidity", "timestamp"],
+        "RecordData": [
+          ["25.5", "60.2", "2024-01-15T10:30:00Z"],
+          ["26.1", "58.7", "2024-01-15T10:31:00Z"]
+        ]
+      }
+    ]
+  },
+  "Properties": {
+    "filename": "sensor_data_20240115.csv",
+    "row_count": "2",
+    "country": "US",
+    "ProductionMode": "1"
+  }
+}
+```
 
 #### 出力例
 
-```JSON
+CSVFileReceiverのメッセージにroute1で定義したプロパティを付与したメッセージ（既存プロパティは上書き）
+
+```json
 {
-  "RecordHeader": [{"ファイル名"}],
-  "RecordData": [{"CSVのレコードデータ"}],
+  "Body": {
+      "RecordList": [
+      {
+        "RecordHeader": ["temperature", "humidity", "timestamp"],
+        "RecordData": [
+          ["25.5", "60.2", "2024-01-15T10:30:00Z"],
+          ["26.1", "58.7", "2024-01-15T10:31:00Z"]
+        ]
+      }
+    ]
+  },
   "Properties": {
-    "filename": {"ファイル名"},
-    "row_count": {"CSVファイルの行数"},
+    "filename": "sensor_data_20240115.csv",
+    "row_count": "2",
     "country": "JP",
     "company": "01",
     "factory": "301",
